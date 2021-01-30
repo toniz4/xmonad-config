@@ -81,7 +81,7 @@ myBackground :: String
 myBackground = "#777777"
 
 myBar :: String
-myBar = "xmobar ~/.config/xmobar/config.hs"
+myBar = "xmobar ~/.config/xmonad/xmobar.hs"
 
 myNormalBorderColor :: String
 myNormalBorderColor  = myColors !! 15
@@ -242,7 +242,7 @@ myLogHook xmproc =  dynamicLogWithPP $ (def PP)
     , ppWsSep             = " "
     , ppTitle             = pad
     , ppSep               = xmobarColor (myColors !! 15) (myColors !! 12) "|"
-    --, ppSort   = fmap (namedScratchpadFilterOutWorkspace.) DO.getSortByOrder
+    , ppSort   = fmap (namedScratchpadFilterOutWorkspace.) DO.getSortByOrder
     , ppOutput = hPutStrLn xmproc  . fitTitle
   }
   where
