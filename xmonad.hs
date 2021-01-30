@@ -231,9 +231,6 @@ myManageHook = composeAll
 myEventHook :: Event -> X All
 myEventHook = ewmhDesktopsEventHook <+> fullscreenEventHook
 
-
--- See the 'XMonad.Hooks.DynamicLog' extension for examples.
-
 myLogHook :: Handle -> X ()
 myLogHook xmproc =  dynamicLogWithPP $ (def PP)
   {   ppCurrent           = xmobarColor (myColors !! 4 ) (myColors !! 12) . wrap "[" "]"
@@ -246,9 +243,12 @@ myLogHook xmproc =  dynamicLogWithPP $ (def PP)
     , ppOutput = hPutStrLn xmproc  . fitTitle
   }
   where
+    -- Space between title and calendar, deppends on size of the font
+    space :: Int
+    space = 101
     fitTitle :: String -> String
     fitTitle str =
-      shorten (((length str - length (xmobarStrip str))+101)) str
+      shorten (((length str - length (xmobarStrip str))+space)) str
                    
 myStartupHook :: X()
 myStartupHook = do
