@@ -2,27 +2,29 @@ import XMonad
 import Data.Monoid
 import System.Exit
 import GHC.IO.Handle.Types
+import Graphics.X11.ExtraTypes.XF86
 
-import XMonad.Util.SpawnOnce
 import XMonad.Util.Cursor (setDefaultCursor)
-import XMonad.Util.Run
 import XMonad.Util.NamedScratchpad
---import XMonad.Util.WorkspaceCompare (getWsIndex)
-import qualified XMonad.Actions.DynamicWorkspaceOrder as DO 
+import XMonad.Util.Run
+import XMonad.Util.SpawnOnce
+import XMonad.Util.WorkspaceCompare (getSortByTag)
 
-import XMonad.Hooks.EwmhDesktops
-import XMonad.Hooks.ManageHelpers
-import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.DynamicLog
+import XMonad.Hooks.EwmhDesktops
+import XMonad.Hooks.InsertPosition
+import XMonad.Hooks.ManageDocks
+import XMonad.Hooks.ManageHelpers
 
 import XMonad.Layout.Renamed
 import XMonad.Layout.NoBorders
 import XMonad.Layout.LayoutModifier
+import XMonad.Layout.CenteredMaster
+import XMonad.Layout.ResizableTile
+import XMonad.Layout.Grid
 
-import Graphics.X11.ExtraTypes.XF86
 import XMonad.Actions.CycleWS
 
-import XMonad.Hooks.InsertPosition
 import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
 
@@ -91,15 +93,10 @@ myFocusedBorderColor = myColors !! 14
 
 scratchpads :: [NamedScratchpad]
 scratchpads = [
-    NS "scratchpad" (myTerminal ++ " -t scratchpad")
-      (title =? "scratchpad") doCenterFloat
-      
-  , NS "music"      (myTerminal ++ " -c cmus music" )
-      (className =? "cmus"  ) doCenterFloat
-    
-  , NS "umpv"       "umpv"
-      (resource  =? "umpv"  ) doCenterFloat 
-    ]
+    NS "scratch" (myTerminal ++ " -c scratch"   ) (className =? "scratch") doCenterFloat
+  , NS "music"   (myTerminal ++ " -c cmus music") (className =? "cmus"   ) doCenterFloat
+  , NS "umpv"    "umpv"                           (resource  =? "umpv"   ) doCenterFloat
+  ]
 
 -- Keybinds
 myKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
@@ -115,10 +112,10 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm .|. shiftMask, xK_n     ), spawn "bookmarksman")
     , ((modm .|. shiftMask, xK_b     ), spawn "$BROWSER")
     , ((modm .|. shiftMask, xK_t     ), spawn "telegram-desktop")
-    , ((modm,               xK_Print ), spawn "scrot -q 100 -e 'mv $f ~/pics/screenshots/'")
+    , ((modm,               xK_Print ), spawn screenshot)
     , ((modm .|. shiftMask, xK_Print ), spawn "sleep 0.5 && tmpscrot")
     -- Scratchpads
-    , ((modm,               xK_o     ), namedScratchpadAction scratchpads "scratchpad")
+    , ((modm,               xK_o     ), namedScratchpadAction scratchpads "scratch")
     , ((modm,               xK_m     ), namedScratchpadAction scratchpads "music")
     , ((modm,               xK_u     ), namedScratchpadAction scratchpads "umpv")
     -- Multimedia keys
@@ -167,6 +164,9 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     [((m .|. modm, k), windows $ f i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
         , (f, m) <- [(W.greedyView, 0), (W.shift, shiftMask)]]
+  where
+    screenshot :: String
+    screenshot = "scrot -q 100 -e 'mv $f ~/pics/screenshots/'"
 
 ------------------------------------------------------------------------
 -- Mouse bindings: default actions bound to mouse events
@@ -188,59 +188,61 @@ myMouseBindings (XConfig {XMonad.modMask = modm}) = M.fromList $
     ]
 
 -- Layouts and hooks
-type MyLayout = XMonad.Layout.LayoutModifier.ModifiedLayout
+       
+type MyLayout = ModifiedLayout
        AvoidStruts
-       (XMonad.Layout.LayoutModifier.ModifiedLayout
+       (ModifiedLayout
           SmartBorder
           (Choose
-             (XMonad.Layout.LayoutModifier.ModifiedLayout Rename Tall)
+             (ModifiedLayout Rename Tall)
              (Choose
-                (XMonad.Layout.LayoutModifier.ModifiedLayout Rename (Mirror Tall))
-                (XMonad.Layout.LayoutModifier.ModifiedLayout Rename Full))))
+                (ModifiedLayout Rename (Mirror Tall))
+                (Choose
+                  (ModifiedLayout Rename Full) (ModifiedLayout Rename Grid)))))
        
 myLayout :: MyLayout Window
-myLayout = avoidStruts $ smartBorders (renamed [Replace tiledIcon] tiled
-                                        ||| renamed [Replace mirrorIcon] (Mirror tiled)
-                                        ||| renamed [Replace fullIcon] Full)
+myLayout =
+  avoidStruts $
+  smartBorders $
+      renamed [Replace tiledIcon]  tiled
+  ||| renamed [Replace mirrorIcon] (Mirror tiled)
+  ||| renamed [Replace fullIcon]   Full
+  ||| renamed [Replace gridIcon]   Grid
   where
-     -- default tiling algorithm partitions the screen into two panes
      tiled   = Tall nmaster delta ratio
-     -- The default number of windows in the master pane
      nmaster = 1
-     -- Default proportion of screen occupied by master pane
      ratio   = 1/2
-     -- Percent of screen to increment by when resizing panes
      delta   = 3/100
      -- Icons
      tiledIcon  = "\57525"
      fullIcon   = "\57524"
      mirrorIcon = "\57526"
+     gridIcon   = "\57528"
      
 myManageHook :: ManageHook
 myManageHook = composeAll
     [ insertPosition Below Newer
-    , className =? "MPlayer"        --> doFloat
+    , namedScratchpadManageHook scratchpads
     , className =? "Gimp"           --> doFloat
     , title     =? "float"          --> doCenterFloat
     , title     =? "Media viewer"   --> doFullFloat
     , resource  =? "desktop_window" --> doIgnore
-    , resource  =? "umpv"           --> doFloat
-    , namedScratchpadManageHook scratchpads
-    ] 
+    , isDialog                      --> doCenterFloat
+    ]
 
 myEventHook :: Event -> X All
 myEventHook = ewmhDesktopsEventHook <+> fullscreenEventHook
 
 myLogHook :: Handle -> X ()
 myLogHook xmproc =  dynamicLogWithPP $ (def PP)
-  {   ppCurrent           = xmobarColor (myColors !! 4 ) (myColors !! 12) . wrap "[" "]"
-    , ppHidden            = xmobarColor myForeground $ myColors !! 12
-    , ppHiddenNoWindows   = const ""
-    , ppWsSep             = " "
-    , ppTitle             = pad
-    , ppSep               = xmobarColor (myColors !! 15) (myColors !! 12) "|"
-    , ppSort   = fmap (namedScratchpadFilterOutWorkspace.) DO.getSortByOrder
-    , ppOutput = hPutStrLn xmproc  . fitTitle
+  {   ppCurrent         = xmobarColor (myColors !! 4 ) (myColors !! 12) . wrap "[" "]"
+    , ppHidden          = xmobarColor myForeground $ myColors !! 12
+    , ppHiddenNoWindows = const ""
+    , ppWsSep           = " "
+    , ppTitle           = pad
+    , ppSep             = xmobarColor (myColors !! 15) (myColors !! 12) "|"
+    , ppSort            = fmap (. namedScratchpadFilterOutWorkspace) getSortByTag
+    , ppOutput          = hPutStrLn xmproc  . fitTitle
   }
   where
     -- Space between title and calendar, deppends on size of the font
@@ -252,9 +254,9 @@ myLogHook xmproc =  dynamicLogWithPP $ (def PP)
                    
 myStartupHook :: X()
 myStartupHook = do
-  spawnOnce "picom --experimental-backends"
-  spawnOnce $ "hsetroot -solid '" ++ myBackground ++ "'"
-  setDefaultCursor xC_left_ptr
+	spawnOnce "picom --experimental-backends"
+	spawnOnce $ "hsetroot -solid '" ++ myBackground ++ "'"
+	setDefaultCursor xC_left_ptr
 
 -- Main function
 main :: IO()

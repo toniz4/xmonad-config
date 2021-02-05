@@ -30,7 +30,7 @@ Config { font = "xft:limey:pixelsize=8"
                     , Run BatteryP ["BAT0"]
                       [ "-t", " <left>%<leftipat>"  
 			 , "--"
-                         , "--on-icon-pattern", ""
+                         , "--on-icon-pattern", ""
                          , "--off-icon-pattern", ""
                          , "--idle-icon-pattern", ""
 		         , "-a", "notify-send -u critical 'Battery running out!!'"
