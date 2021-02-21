@@ -29,23 +29,25 @@ Config { font = "xft:limey:pixelsize=8"
                        , "-l", "" ]
                     , Run BatteryP ["BAT0"]
                       [ "-t", " <left>%<leftipat>"  
-			 , "--"
+                         , "--"
                          , "--on-icon-pattern", ""
                          , "--off-icon-pattern", ""
                          , "--idle-icon-pattern", ""
-		         , "-a", "notify-send -u critical 'Battery running out!!'"
+                         , "-a", "notify-send -u critical 'Battery running out!!'"
                          , "-l", "#c6414d"] 10
                     , Run UnsafeStdinReader
                     , Run CoreTemp [   "-t", " <core0>C"
-				     , "-L", "40", "-H", "83"
+                                     , "-L", "40", "-H", "83"
                                      , "-h", "#c6414d" ] 20
                     , Run Com "internet" [] "internet" 100
-                    , Run PipeReader "  :/tmp/cmus-pipe" "barmusic"  
+                    , Run PipeReader " :/tmp/cmus-pipe" "barmusic"  
+                    , Run PipeReader " :/tmp/capture-pipe" "barrec"
                     ]
        , sepChar = "%"
        , alignSep = "}{"
        , template = "%UnsafeStdinReader% }\
                     \<action=`toggleDunst` button=1>%date%</action>{\
+                    \<fc=#880000>%barrec%</fc>\
                     \<action=`cmus-remote -u` button=1>\
                     \<action=`nowplaying`     button=3>\
                     \<action=`cmus-remote -n` button=4>\
@@ -53,8 +55,8 @@ Config { font = "xft:limey:pixelsize=8"
                     \%barmusic% </action></action></action></action>\
                     \%internet% %coretemp% %battery% \
                     \<action=`vol mute` button=1>\
-		    \<action=`st -t float -e alsamixer` button=3>\
-		    \<action=`vol up 1` button=4>\
-		    \<action=`vol down 1` button=5>\
-		    \%alsa:default:Master%</action></action></action></action> "
+            \<action=`st -t float -e alsamixer` button=3>\
+            \<action=`vol up 1` button=4>\
+            \<action=`vol down 1` button=5>\
+            \%alsa:default:Master%</action></action></action></action> "
                       }
