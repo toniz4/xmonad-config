@@ -7,7 +7,6 @@ import Graphics.X11.ExtraTypes.XF86
 import XMonad.Util.Cursor (setDefaultCursor)
 import XMonad.Util.NamedScratchpad
 import XMonad.Util.Run
-import XMonad.Util.SpawnOnce
 import XMonad.Util.WorkspaceCompare (getSortByTag)
 
 import XMonad.Hooks.DynamicLog
@@ -15,18 +14,18 @@ import XMonad.Hooks.EwmhDesktops
 import XMonad.Hooks.InsertPosition
 import XMonad.Hooks.ManageDocks
 import XMonad.Hooks.ManageHelpers
+import XMonad.Hooks.UrgencyHook
 
 import XMonad.Layout.Renamed
 import XMonad.Layout.NoBorders
 import XMonad.Layout.LayoutModifier
-import XMonad.Layout.CenteredMaster
-import XMonad.Layout.ResizableTile
 import XMonad.Layout.Grid
 
 import XMonad.Actions.CycleWS
 
 import qualified XMonad.StackSet as W
 import qualified Data.Map        as M
+
 
 -- Colors and defaults:
 myTerminal :: String
@@ -51,45 +50,48 @@ xmobarEscape  = concatMap doubleLts
     doubleLts x   = [x]
 
 myWorkspaces :: [String]
-myWorkspaces = clickable . map xmobarEscape $
-  ["1:www","2:tr1","3:tr2","4:tr3","5:tel","6:irc","7:cmp"]
+myWorkspaces = clickable . map xmobarEscape $ spaced labels
   where
+    labels = ["Ⅰ","Ⅱ","Ⅲ","Ⅳ","Ⅴ","Ⅵ","Ⅶ"]
+    spaced l = [" " ++ ws ++ " " | ws <- l]
     clickable l = ["<action=`wmctrl -s " ++ (show n) ++ "`>" ++ ws ++ "</action>"
-                  | (i,ws) <- zip [0..6] l, let n = i :: Int]
+                  | (i,ws) <- zip [0..(length labels)] l, let n = i :: Int]
 
 myColors :: [String]
-myColors = [   "#FFFFEA" -- black
-             , "#880000" -- red
-             , "#005500" -- green
-             , "#663311" -- yellow
-             , "#00009A" -- blue
-             , "#770077" -- magenta
-             , "#007777" -- cyan
-             , "#EEEECC" -- white
-             , "#737373" -- brblack
-             , "#FFEAEA" -- brred
-             , "#EAFFEA" -- brgreen
-             , "#EEEE9E" -- bryellow
-             , "#CCEEFF" -- brblue
-             , "#FFEAFF" -- brmagenta
-             , "#EAFFFF" -- brcyan
-             , "#CCCCB7" -- brwhite
+myColors = [ "#0B0A07" -- black
+           , "#9c1616" -- red
+           , "#194d19" -- green
+           , "#7a651f" -- yellow
+           , "#192A51" -- blue
+           , "#5f2475" -- magenta
+           , "#105670" -- cyan
+           , "#DFDFDF" -- white
+           , "#757575" -- brblack
+           , "#e96363" -- brred
+           , "#46b946" -- brgreen
+           , "#e0e085" -- bryellow
+           , "#3558AC" -- brblue
+           , "#B8B8B8" -- brmagenta
+           , "#d2eef9" -- brcyan
+           , "#D6D6D6" -- brwhite
            ]
 
 myForeground :: String
-myForeground = "#000000"
+myForeground = myColors !! 8
 
 myBackground :: String
-myBackground = myColors !! 8
+myBackground = myColors !! 7
 
 myBar :: String
-myBar = "xmobar ~/.config/xmonad/xmobar.hs"
+myBar = "xmobar -B '"
+  ++ (myColors !! 7) ++ "' -F '"
+  ++ (myColors !! 0) ++ "' ~/.config/xmonad/xmobar.hs"
 
 myNormalBorderColor :: String
-myNormalBorderColor  = myColors !! 12
+myNormalBorderColor  = myColors !! 15
 
 myFocusedBorderColor :: String
-myFocusedBorderColor = "#55AAAA"
+myFocusedBorderColor = myColors !! 8
 
 scratchpads :: [NamedScratchpad]
 scratchpads = [
@@ -102,24 +104,23 @@ scratchpads = [
 myKeys :: XConfig Layout -> M.Map (KeyMask, KeySym) (X ())
 myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     [ ((modm,               xK_Return), spawn $ XMonad.terminal conf)
-    , ((modm,               xK_p     ), spawn "dmenu_run")
-    , ((modm .|. shiftMask, xK_e     ), spawn $ myTerminal ++ " lf")
-    , ((modm,               xK_f     ), spawn $ myTerminal ++ " tremc")
-    , ((modm,               xK_e     ), spawn "emacsclient -a emacs -c")
-    , ((modm .|. shiftMask, xK_f     ), spawn "mountpi")
-    , ((modm,               xK_g     ), spawn $ myTerminal ++ " -t float htop")
-    , ((modm .|. shiftMask, xK_x     ), spawn "powermenu")
-    , ((modm .|. shiftMask, xK_n     ), spawn "bookmarksman")
-    , ((modm .|. shiftMask, xK_b     ), spawn "$BROWSER")
-    , ((modm .|. shiftMask, xK_t     ), spawn "telegram-desktop")
     , ((modm,               xK_Print ), spawn "capture shot full")
     , ((modm .|. shiftMask, xK_Print ), spawn "capture shot sel tmp")
+    , ((modm,               xK_s     ), spawn "$BROWSER")
+    , ((modm,               xK_e     ), spawn "emacsclient -ca emacs")
+    , ((modm .|. shiftMask, xK_e     ), termSpawn "lf")
+    , ((modm,               xK_f     ), spawn "gbdfed")
+    , ((modm,               xK_g     ), termSpawn "-t float htop")
+    , ((modm.|. shiftMask,  xK_m     ), termSpawn "neomutt")
+    , ((modm,               xK_p     ), spawn "dmenu_run")
+    , ((modm,               xK_r     ), spawn "capture vid full")
+    , ((modm .|. shiftMask, xK_r     ), spawn "capture vid sel tmp")
+    , ((modm .|. shiftMask, xK_t     ), spawn "telegram-desktop")
+    , ((modm .|. shiftMask, xK_x     ), spawn "powermenu")
     -- Scratchpads
-    , ((modm,               xK_o     ), namedScratchpadAction scratchpads "scratch")
     , ((modm,               xK_m     ), namedScratchpadAction scratchpads "music")
+    , ((modm,               xK_o     ), namedScratchpadAction scratchpads "scratch")
     , ((modm,               xK_u     ), namedScratchpadAction scratchpads "umpv")
-    , ((modm,               xK_r     ), spawn "capture vid sel tmp")
-    , ((modm .|. shiftMask, xK_r     ), spawn "capture vid full")
     -- Multimedia keys
     , ((0,   xF86XK_AudioLowerVolume ), spawn "amixer -q sset Master 5%-")
     , ((0,   xF86XK_AudioRaiseVolume ), spawn "amixer -q sset Master 5%+")
@@ -127,11 +128,11 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((0,   xF86XK_AudioPrev        ), spawn "cmus-remote -r")
     , ((0,   xF86XK_AudioNext        ), spawn "cmus-remote -n")
     , ((0,   xF86XK_AudioPlay        ), spawn "cmus-remote -u")
-    , ((0,   xF86XK_Launch1          ), spawn $ myTerminal ++ " -t float -e alsamixer")
+    , ((0,   xF86XK_Launch1          ), termSpawn "-t float -e alsamixer")
     , ((0,   xF86XK_MonBrightnessUp  ), spawn "xbacklight -inc 5")
     , ((0,   xF86XK_MonBrightnessDown), spawn "xbacklight -dec 5")
     , ((0,   xF86XK_ScreenSaver      ), spawn "slock")
-     -- Layouts  
+    -- Layouts  
     , ((modm,               xK_space ), sendMessage NextLayout)
     , ((modm .|. shiftMask, xK_space ), setLayout $ XMonad.layoutHook conf)
     -- Window operations
@@ -147,13 +148,13 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     , ((modm,               xK_h     ), sendMessage Shrink)
     , ((modm,               xK_l     ), sendMessage Expand)
     , ((modm,               xK_t     ), withFocused $ windows . W.sink)
-    , ((modm              , xK_comma ), sendMessage $ IncMasterN 1)
-    , ((modm              , xK_period), sendMessage $ IncMasterN (-1))
+    , ((modm,               xK_comma ), sendMessage $ IncMasterN 1)
+    , ((modm,               xK_period), sendMessage $ IncMasterN (-1))
     -- Toggle the status bar gap
-    , ((modm              , xK_b     ), sendMessage ToggleStruts)
+    , ((modm,               xK_b     ), sendMessage ToggleStruts)
     -- Quit
     , ((modm .|. shiftMask, xK_q     ), io $ exitWith ExitSuccess)
-    , ((modm              , xK_q     ), spawn "xmonadcompile")
+    , ((modm,               xK_q     ), spawn "xmonadcompile")
     -- Workspace movment
     , ((modm .|. shiftMask, xK_h     ), moveTo Prev NonEmptyWS)
     , ((modm .|. shiftMask, xK_l     ), moveTo Next NonEmptyWS)
@@ -166,6 +167,8 @@ myKeys conf@(XConfig {XMonad.modMask = modm}) = M.fromList $
     [((m .|. modm, k), windows $ f i)
         | (i, k) <- zip (XMonad.workspaces conf) [xK_1 .. xK_9]
         , (f, m) <- [(W.greedyView, 0), (W.shift, shiftMask)]]
+          where
+            termSpawn s = spawn $ myTerminal ++ " " ++ s
 
 ------------------------------------------------------------------------
 -- Mouse bindings: default actions bound to mouse events
@@ -210,7 +213,7 @@ myLayout =
   where
      tiled   = Tall nmaster delta ratio
      nmaster = 1
-     ratio   = 1/2
+     ratio   = 0.52
      delta   = 3/100
      -- Icons
      tiledIcon  = "\57525"
@@ -220,70 +223,64 @@ myLayout =
      
 myManageHook :: ManageHook
 myManageHook = composeAll
-    [ insertPosition Below Newer
-    , namedScratchpadManageHook scratchpads
-    , className =? "Gimp"                 --> doFloat
-    , className =? "Dragon-drag-and-drop" --> doCenterFloat
-    , title     =? "float"                --> doCenterFloat
-    , title     =? "Media viewer"         --> doFullFloat
-    , resource  =? "desktop_window"       --> doIgnore
-    , isDialog                            --> doCenterFloat
-    ]
+  [ insertPosition Below Newer
+  , namedScratchpadManageHook scratchpads
+  , className =? "Gimp"                 --> doFloat
+  , className =? "Dragon-drag-and-drop" --> doCenterFloat
+  , title     =? "float"                --> doCenterFloat
+  , title     =? "Media viewer"         --> doFullFloat
+  , resource  =? "desktop_window"       --> doIgnore
+  , isDialog                            --> doCenterFloat
+  ]
 
 myEventHook :: Event -> X All
 myEventHook = ewmhDesktopsEventHook <+> fullscreenEventHook
 
 myLogHook :: Handle -> X ()
 myLogHook xmproc =  dynamicLogWithPP $ (def PP)
-  {   ppCurrent         = xmobarColor (myColors !! 4 ) (myColors !! 14) . wrap "[" "]"
-    , ppHidden          = xmobarColor myForeground $ myColors !! 14
-    , ppHiddenNoWindows = const ""
-    , ppWsSep           = " "
-    , ppTitle           = pad . xmobarStrip
-    , ppSep             = xmobarColor (myColors !! 15) (myColors !! 14) "|"
-    , ppSort            = fmap (. namedScratchpadFilterOutWorkspace) getSortByTag
-    , ppOutput          = hPutStrLn xmproc . fitTitle
+  { ppCurrent         = xmobarColor (myColors !! 7) (myColors !! 13)
+  , ppHidden          = xmobarColor myForeground (myColors !! 7)
+  , ppHiddenNoWindows = const ""
+  , ppUrgent          = xmobarColor (myColors !! 1) myBackground
+  , ppWsSep           = ""
+  , ppTitle           = pad . xmobarStrip
+  , ppSep             = xmobarColor (myColors !! 8) (myColors !! 7) "|"
+  , ppSort            = fmap (. namedScratchpadFilterOutWorkspace) getSortByTag
+  , ppOutput          = hPutStrLn xmproc . fitTitle
   }
   where
     -- Space between title and calendar, deppends on size of the font
     space :: Int
-    space = 101
+    space = 85
     fitTitle :: String -> String
     fitTitle str =
       shorten (((length str - length (xmobarStrip str))+space)) str
                    
 myStartupHook :: X()
 myStartupHook = do
-    spawnOnce "picom --experimental-backends"
-    spawnOnce $ "hsetroot -solid '" ++ myBackground ++ "'"
-    setDefaultCursor xC_left_ptr
+  setDefaultCursor xC_left_ptr
 
 -- Main function
 main :: IO()
 main = do
-    bar <- spawnPipe myBar
-    xmonad $ ewmh $ docks $ defaults bar
+  bar <- spawnPipe myBar
+  xmonad $ withUrgencyHook NoUrgencyHook $ ewmh $ docks $ defaults bar
 
 defaults :: Handle -> XConfig MyLayout
-defaults bar = def {
-      -- simple stuff
-        terminal           = myTerminal,
-        focusFollowsMouse  = myFocusFollowsMouse,
-        clickJustFocuses   = myClickJustFocuses,
-        borderWidth        = myBorderWidth,
-        modMask            = myModMask,
-        workspaces         = myWorkspaces,
-        normalBorderColor  = myNormalBorderColor,
-        focusedBorderColor = myFocusedBorderColor,
-
-      -- key bindings
-        keys               = myKeys,
-        mouseBindings      = myMouseBindings,
-
-      -- hooks, layouts
-        layoutHook         = myLayout,
-        manageHook         = myManageHook,
-        handleEventHook    = myEventHook ,
-        logHook            = myLogHook bar,
-        startupHook        = myStartupHook
-        }
+defaults bar =
+  def { terminal           = myTerminal
+      , focusFollowsMouse  = myFocusFollowsMouse
+      , clickJustFocuses   = myClickJustFocuses
+      , borderWidth        = myBorderWidth
+      , modMask            = myModMask
+      , workspaces         = myWorkspaces
+      , normalBorderColor  = myNormalBorderColor
+      , focusedBorderColor = myFocusedBorderColor
+      , keys               = myKeys
+      , mouseBindings      = myMouseBindings
+      , layoutHook         = myLayout
+      , manageHook         = myManageHook
+      , handleEventHook    = myEventHook
+      , logHook            = myLogHook bar
+      , startupHook        = myStartupHook
+      }
